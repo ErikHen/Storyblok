@@ -5,6 +5,7 @@ using System.Net;
 using System.Net.Http;
 using System.Text.Json;
 using System.Threading.Tasks;
+using Adliance.Storyblok.Core.Cache;
 using Adliance.Storyblok.Core.Components;
 using Adliance.Storyblok.Core.Extensions;
 using Microsoft.Extensions.Logging;
@@ -13,8 +14,11 @@ namespace Adliance.Storyblok.Core.Clients
 {
     public class StoryblokStoryClient : StoryblokBaseClient
     {
-        public StoryblokStoryClient(IHttpClientFactory clientFactory, ILogger<StoryblokBaseClient> logger) : base(clientFactory, logger)
+        private IStoryCache _storyCache;
+
+        public StoryblokStoryClient(IHttpClientFactory clientFactory, ILogger<StoryblokBaseClient> logger, IStoryCache storyCache) : base(clientFactory, logger)
         {
+            _storyCache = storyCache;
         }
 
         public StoryblokStoryQuery Story()
@@ -42,32 +46,33 @@ namespace Adliance.Storyblok.Core.Clients
                 return await LoadStoryFromStoryblok(culture, slug, resolveLinks, resolveAssets, resolveRelations);
             }
 
-            //TODO: custom cache implementation
-            //var cacheKey = $"{culture}_{slug}_{resolveLinks}_{resolveAssets}_{resolveRelations}";
-            //if (MemoryCache.TryGetValue(cacheKey, out StoryblokStory? cachedStory) && cachedStory != null)
-            //{
-            //    Logger.LogTrace($"Using cached story for slug \"{slug}\" (culture \"{culture}\").");
-            //    return cachedStory;
-            //}
+            var cacheKey = $"{culture}_{slug}_{resolveLinks}_{resolveAssets}_{resolveRelations}";
+            var cachedStory = _storyCache.Get(cacheKey);
+            if (cachedStory != null)
+            {
+                Logger.LogTrace($"Using cached story for slug \"{slug}\" (culture \"{culture}\").");
+                return cachedStory;
+            }
 
-            //var cacheKeyUnavailable = "404_" + cacheKey;
-            //if (MemoryCache.TryGetValue(cacheKeyUnavailable, out _))
-            //{
-            //    Logger.LogTrace($"Using cached 404 for slug \"{slug}\" (culture \"{culture}\").");
-            //    return null;
-            //}
+            var cacheKeyUnavailable = "404_" + cacheKey;
+            cachedStory = _storyCache.Get(cacheKeyUnavailable);
+            if (cachedStory != null)
+            {
+                Logger.LogTrace($"Using cached 404 for slug \"{slug}\" (culture \"{culture}\").");
+                return null;
+            }
 
             Logger.LogTrace($"Trying to load story for slug \"{slug}\" (culture \"{culture}\").");
             var story = await LoadStoryFromStoryblok(culture, slug, resolveLinks, resolveAssets, resolveRelations);
             if (story != null)
             {
                 Logger.LogTrace($"Story loaded for slug \"{slug}\" (culture \"{culture}\").");
-                //MemoryCache.Set(cacheKey, story, TimeSpan.FromSeconds(Settings.CacheDurationSeconds));
+                _storyCache.Set(cacheKey, story, TimeSpan.FromSeconds(StoryblokOptions.CacheDurationSeconds));
                 return story;
             }
 
             Logger.LogTrace($"Story not found for slug \"{slug}\" (culture \"{culture}\").");
-            //MemoryCache.Set(cacheKeyUnavailable, true, TimeSpan.FromSeconds(Settings.CacheDurationSeconds));
+            _storyCache.Set(cacheKeyUnavailable, new StoryblokStory(), TimeSpan.FromSeconds(StoryblokOptions.CacheDurationSeconds));
             return null;
         }
 

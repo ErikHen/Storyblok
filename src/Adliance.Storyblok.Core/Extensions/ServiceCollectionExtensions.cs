@@ -1,4 +1,5 @@
 ﻿using System.Net.Http;
+using Adliance.Storyblok.Core.Cache;
 using Adliance.Storyblok.Core.Clients;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -11,7 +12,7 @@ namespace Adliance.Storyblok.Core.Extensions
         {
             services.AddHttpClient<StoryblokBaseClient>();
             // services.AddHttpContextAccessor();
-            services.AddSingleton(s => new StoryblokStoryClient(s.GetService<IHttpClientFactory>()!, s.GetService<ILogger<StoryblokBaseClient>>()));
+            services.AddSingleton(s => new StoryblokStoryClient(s.GetService<IHttpClientFactory>()!, s.GetService<ILogger<StoryblokBaseClient>>(), s.GetService<IStoryCache>() ?? new SingletonCache()));
             //services.AddSingleton<StoryblokStoriesClient>();
             //services.AddSingleton<StoryblokDatasourceClient>();
         }
