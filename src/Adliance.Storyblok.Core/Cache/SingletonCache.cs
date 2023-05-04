@@ -7,7 +7,7 @@ using Adliance.Storyblok.Core.Components;
 
 namespace Adliance.Storyblok.Core.Cache
 {
-    public class SingletonCache : IStoryCache
+    internal class SingletonCache : IStoryCache
     {
         private readonly Dictionary<string, CacheContainer> _cache = new();
 
